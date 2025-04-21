@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+from pyvis.network import Network
+import streamlit.components.v1 as components
 
 # Corrected city mapping
 graph = {
@@ -13,11 +15,10 @@ graph = {
 
 # Handwritten Dijkstra Algorithm
 def dijkstra(graph, start, end):
-    heap = [(0, start, [])]  # (cost_so_far, current_node, path_so_far)
+    heap = [(0, start, [])]
     visited = set()
     
     while heap:
-        # Sort heap manually since we don't import heapq
         heap.sort()
         (cost, node, path) = heap.pop(0)
         
@@ -35,19 +36,26 @@ def dijkstra(graph, start, end):
     
     return (None, float('inf'))
 
+# Build Pyvis network
+def draw_network(graph):
+    net = Network(height="500px", width="100%", bgcolor="#ffffff", font_color="black", directed=True)
+    
+    for node in graph.keys():
+        net.add_node(node, label=node)
+
+    for from_node, edges in graph.items():
+        for to_node, weight in edges.items():
+            net.add_edge(from_node, to_node, label=str(weight))
+
+    return net
+
 # Streamlit App
 def main():
-    st.title("Shortest Path Finder App (Corrected City Mapping)")
-    st.write("This app solves the shortest path problem between fictional cities without external libraries.")
+    st.title("Shortest Path Finder App with Network Visualization")
+    st.write("This app solves the shortest path problem and shows the network graph dynamically.")
 
     mode = st.selectbox("Interpret numbers as:", ["Miles (distance)", "Cost (dollars)", "Time (minutes)"])
     st.write(f"Numbers are currently interpreted as **{mode}**.")
-
-    # Show the graph as text
-    st.subheader("City Connections")
-    for city, neighbors in graph.items():
-        for neighbor, cost in neighbors.items():
-            st.write(f"{city} ➔ {neighbor}: {cost} {mode.lower()}")
 
     # Find and display the shortest path
     st.subheader("Shortest Path from Chicago to Farmer")
@@ -57,6 +65,14 @@ def main():
         st.info(f"Total {mode.lower()}: {total_cost}")
     else:
         st.error("No path exists from Chicago to Farmer.")
+
+    # Show the network graph
+    st.subheader("City Network Visualization")
+    net = draw_network(graph)
+    net.save_graph("network.html")
+    HtmlFile = open("network.html", 'r', encoding='utf-8')
+    source_code = HtmlFile.read()
+    components.html(source_code, height=550)
 
     # Show the adjacency table
     st.subheader("Distance/Cost/Time Table")
@@ -72,5 +88,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
