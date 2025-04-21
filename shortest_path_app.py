@@ -1,61 +1,77 @@
 # filename: shortest_path_app.py
 
 import streamlit as st
-import networkx as nx
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Define the updated table with city names
-data = {
-    'Chicago': {'Origin': 40, 'Chicago': 0, 'McLain': 10, 'Aurora': float('inf'), 'Parker': 70, 'Smallville': float('inf'), 'Farmer': float('inf')},
-    'McLain': {'Origin': 60, 'Chicago': float('inf'), 'McLain': 0, 'Aurora': 20, 'Parker': 55, 'Smallville': 40, 'Farmer': float('inf')},
-    'Aurora': {'Origin': 50, 'Chicago': float('inf'), 'McLain': float('inf'), 'Aurora': 0, 'Parker': float('inf'), 'Smallville': 50, 'Farmer': float('inf')},
-    'Parker': {'Origin': float('inf'), 'Chicago': float('inf'), 'McLain': float('inf'), 'Aurora': float('inf'), 'Parker': 0, 'Smallville': 10, 'Farmer': 60},
-    'Smallville': {'Origin': float('inf'), 'Chicago': float('inf'), 'McLain': float('inf'), 'Aurora': float('inf'), 'Parker': float('inf'), 'Smallville': 0, 'Farmer': 80},
+# Define the graph using dictionaries
+graph = {
+    'Origin': {'Chicago': 40, 'McLain': 60, 'Aurora': 50},
+    'Chicago': {'McLain': 10, 'Parker': 70},
+    'McLain': {'Aurora': 20, 'Parker': 55, 'Smallville': 40},
+    'Aurora': {'Smallville': 50},
+    'Parker': {'Smallville': 10, 'Farmer': 60},
+    'Smallville': {'Farmer': 80},
+    'Farmer': {}
 }
-towns = ['Origin', 'Chicago', 'McLain', 'Aurora', 'Parker', 'Smallville', 'Farmer']
 
-# Create the graph
-def create_graph():
-    G = nx.DiGraph()
-    for city in data:
-        for neighbor in data[city]:
-            if not pd.isna(data[city][neighbor]) and data[city][neighbor] != float('inf'):
-                G.add_edge(neighbor, city, weight=data[city][neighbor])
-    return G
+# Handwritten Dijkstra Algorithm
+def dijkstra(graph, start, end):
+    import heapq
+    heap = [(0, start, [])]  # (cost_so_far, current_node, path_so_far)
+    visited = set()
+    
+    while heap:
+        (cost, node, path) = heapq.heappop(heap)
+        if node in visited:
+            continue
+        visited.add(node)
+        path = path + [node]
+        
+        if node == end:
+            return (path, cost)
+        
+        for neighbor, weight in graph[node].items():
+            if neighbor not in visited:
+                heapq.heappush(heap, (cost + weight, neighbor, path))
+    
+    return (None, float('inf'))
 
-# Main Streamlit app
+# Streamlit App
 def main():
-    st.title("Shortest Path Finder App (Fictional Cities Edition)")
-    st.write("This app solves a shortest path problem between fictional cities.")
+    st.title("Shortest Path Finder App (Fictional Cities, No NetworkX)")
+    st.write("This app solves the shortest path problem between fictional cities without using external libraries.")
 
     mode = st.selectbox("Interpret numbers as:", ["Miles (distance)", "Cost (dollars)", "Time (minutes)"])
     st.write(f"Numbers are currently interpreted as **{mode}**.")
 
-    G = create_graph()
+    # Show the graph as text
+    st.subheader("City Connections")
+    for city, neighbors in graph.items():
+        for neighbor, cost in neighbors.items():
+            st.write(f"{city} ➔ {neighbor}: {cost} {mode.lower()}")
 
-    # Draw the network
-    st.subheader("Network Graph")
-    pos = nx.spring_layout(G, seed=42)
-    fig, ax = plt.subplots()
-    nx.draw(G, pos, with_labels=True, node_color='lightblue', edge_color='gray', node_size=2000, font_size=9)
-    edge_labels = nx.get_edge_attributes(G, 'weight')
-    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
-    st.pyplot(fig)
-
-    # Find shortest path
+    # Find and display the shortest path
     st.subheader("Shortest Path from Origin to Farmer")
-    try:
-        path = nx.dijkstra_path(G, source='Origin', target='Farmer', weight='weight')
-        distance = nx.dijkstra_path_length(G, source='Origin', target='Farmer', weight='weight')
+    path, total_cost = dijkstra(graph, 'Origin', 'Farmer')
+    if path:
         st.success(f"The shortest path is: {' -> '.join(path)}")
-        st.info(f"Total {mode.lower()}: {distance}")
-    except nx.NetworkXNoPath:
-        st.error("No path exists between Origin and Farmer.")
+        st.info(f"Total {mode.lower()}: {total_cost}")
+    else:
+        st.error("No path exists from Origin to Farmer.")
 
-    # Show table
+    # Show the adjacency table
     st.subheader("Distance/Cost/Time Table")
-    df = pd.DataFrame(data).fillna('-')
+    df_data = []
+    for from_city, connections in graph.items():
+        row = {}
+        for to_city in graph.keys():
+            if to_city in connections:
+                row[to_city] = connections[to_city]
+            else:
+                row[to_city] = "-"
+        df_data.append(pd.Series(row, name=from_city))
+    df = pd.DataFrame(df_data)
     st.dataframe(df)
 
 if __name__ == "__main__":
